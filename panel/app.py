@@ -128,7 +128,8 @@ def dashboard():
 @app.route("/domains")
 def domains_page():
     domain_cfg = load_domain_config()
-    return render_template("domains.html", domain_cfg=domain_cfg)
+    subdomains = domain_cfg.get("subdomains", [])
+    return render_template("domains.html", domain_cfg=domain_cfg, subdomains=subdomains)
 
 @app.route("/ssl")
 def ssl_page():
@@ -229,6 +230,87 @@ def api_domain():
     
     ok, msg = run_cmd("nginx -t && systemctl reload nginx")
     return jsonify({"ok": ok, "message": f"دامنه {domain} اضافه شد"})
+
+@app.route("/api/subdomain", methods=["POST"])
+def api_subdomain():
+    data = request.json or {}
+    subdomain = data.get("subdomain", "").strip()
+    port = data.get("port", 5000)
+    
+    if not subdomain:
+        return jsonify({"ok": False, "error": "ساب‌دامنه الزامی است"})
+    
+    try:
+        port = int(port)
+    except (ValueError, TypeError):
+        port = 5000
+    
+    if port < 1 or port > 65535:
+        return jsonify({"ok": False, "error": "پورت نامعتبر (۱-۶۵۵۳۵)"})
+    
+    # Create nginx config for subdomain
+    nginx_conf = f"""server {{
+    listen 80;
+    server_name {subdomain};
+    location / {{
+        proxy_pass http://127.0.0.1:{port};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }}
+    client_max_body_size 50M;
+}}"""
+    
+    conf_path = f"/etc/nginx/sites-available/{subdomain}"
+    with open(conf_path, "w") as f:
+        f.write(nginx_conf)
+    
+    enabled_path = f"/etc/nginx/sites-enabled/{subdomain}"
+    if os.path.islink(enabled_path) or os.path.exists(enabled_path):
+        os.remove(enabled_path)
+    os.symlink(conf_path, enabled_path)
+    
+    ok, msg = run_cmd("nginx -t && systemctl reload nginx")
+    
+    if ok:
+        cfg = load_domain_config()
+        if "subdomains" not in cfg:
+            cfg["subdomains"] = []
+        cfg["subdomains"] = [s for s in cfg["subdomains"] if s.get("name") != subdomain]
+        cfg["subdomains"].append({"name": subdomain, "port": port, "ssl": False})
+        save_domain_config(cfg)
+    
+    return jsonify({"ok": ok, "message": f"ساب‌دامنه {subdomain} اضافه شد"})
+
+@app.route("/api/subdomain/delete", methods=["POST"])
+def api_subdomain_delete():
+    data = request.json or {}
+    subdomain = data.get("subdomain", "").strip()
+    
+    if not subdomain:
+        return jsonify({"ok": False, "error": "ساب‌دامنه الزامی است"})
+    
+    enabled_path = f"/etc/nginx/sites-enabled/{subdomain}"
+    available_path = f"/etc/nginx/sites-available/{subdomain}"
+    
+    if os.path.islink(enabled_path) or os.path.exists(enabled_path):
+        os.remove(enabled_path)
+    if os.path.exists(available_path):
+        os.remove(available_path)
+    
+    ok, msg = run_cmd("nginx -t && systemctl reload nginx")
+    
+    if ok:
+        cfg = load_domain_config()
+        if "subdomains" in cfg:
+            cfg["subdomains"] = [s for s in cfg["subdomains"] if s.get("name") != subdomain]
+            save_domain_config(cfg)
+    
+    return jsonify({"ok": ok, "message": f"ساب‌دامنه {subdomain} حذف شد"})
 
 @app.route("/api/ssl", methods=["POST"])
 def api_ssl():
