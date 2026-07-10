@@ -272,6 +272,26 @@ def api_traffic_reset(subdomain):
     ok = tm.reset_usage(subdomain)
     return jsonify({"ok": ok, "message": "مصرف ریست شد" if ok else "خطا"})
 
+@app.route("/api/traffic/<path:subdomain>/configs")
+def api_traffic_configs(subdomain):
+    """دریافت کانفیگ‌های قابل کپی ساب‌دامنه"""
+    from core.traffic_monitor import TrafficMonitor
+    tm = TrafficMonitor()
+    configs = tm.get_configs(subdomain)
+    return jsonify({"ok": True, "configs": configs})
+
+@app.route("/sub/<path:subdomain>")
+def sub_subscription(subdomain):
+    """لینک اشتراک (Subscription) برای کلاینت‌ها"""
+    import base64
+    from core.traffic_monitor import TrafficMonitor
+    tm = TrafficMonitor()
+    configs = tm.get_configs(subdomain)
+    # Only proxy configs (not subscription link itself)
+    links = [c["link"] for c in configs if c["type"] != "sub"]
+    sub_content = base64.b64encode("\n".join(links).encode()).decode()
+    return sub_content, 200, {"Content-Type": "text/plain; charset=utf-8"}
+
 @app.route("/api/subdomain", methods=["POST"])
 def api_subdomain():
     data = request.json or {}
