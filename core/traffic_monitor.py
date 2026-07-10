@@ -178,6 +178,87 @@ class TrafficMonitor:
                 result.append(s)
         return result
 
+    def get_configs(self, name, server_ip=""):
+        """تولید کانفیگ‌های قابل کپی برای ساب‌دامنه"""
+        import base64
+        import uuid as uuid_mod
+
+        data = self._load()
+        if name not in data["subdomains"]:
+            return []
+
+        sub = data["subdomains"][name]
+        uid = str(uuid_mod.uuid4())
+        port = sub.get("port", 443)
+        host = name
+
+        configs = []
+
+        # VLESS (Reality)
+        configs.append({
+            "type": "vless",
+            "name": "VLESS Reality",
+            "icon": "🟢",
+            "link": f"vless://{uid}@{host}:443?encryption=none&security=reality&sni={host}&fp=chrome&type=tcp&flow=xtls-rprx-vision#SenAI-{name}",
+            "desc": "VLESS با Reality - ضد‌فیلتر قوی"
+        })
+
+        # VMess
+        vmess_json = json.dumps({
+            "v": "2", "ps": f"SenAI-{name}",
+            "add": host, "port": "443",
+            "id": uid, "aid": "0",
+            "net": "ws", "type": "none",
+            "host": host, "path": "/",
+            "tls": "tls"
+        })
+        vmess_b64 = base64.b64encode(vmess_json.encode()).decode()
+        configs.append({
+            "type": "vmess",
+            "name": "VMess WS TLS",
+            "icon": "🔵",
+            "link": f"vmess://{vmess_b64}",
+            "desc": "VMess با WebSocket و TLS"
+        })
+
+        # Trojan
+        configs.append({
+            "type": "trojan",
+            "name": "Trojan",
+            "icon": "🟣",
+            "link": f"trojan://{uid}@{host}:443?security=tls&sni={host}#SenAI-{name}",
+            "desc": "Trojan با TLS"
+        })
+
+        # VLESS gRPC
+        configs.append({
+            "type": "vless-grpc",
+            "name": "VLESS gRPC",
+            "icon": "🟡",
+            "link": f"vless://{uid}@{host}:443?encryption=none&security=tls&sni={host}&type=grpc&serviceName=senai&mode=gun#SenAI-gRPC-{name}",
+            "desc": "VLESS با gRPC - مناسب CDN"
+        })
+
+        # Shadowsocks
+        configs.append({
+            "type": "ss",
+            "name": "Shadowsocks",
+            "icon": "🔴",
+            "link": f"ss://YWVzLTI1Ni1nY206{uid[:16]}@{host}:8388#SenAI-SS-{name}",
+            "desc": "Shadowsocks - سبک و سریع"
+        })
+
+        # Subscription link
+        configs.append({
+            "type": "sub",
+            "name": "لینک اشتراک (Subscription)",
+            "icon": "📋",
+            "link": f"https://{host}/sub/{name}",
+            "desc": "لینک اشتراک برای ایمپورت خودکار در کلاینت‌ها"
+        })
+
+        return configs
+
     def update_limits(self, name, data_limit_gb=None, time_limit_hours=None):
         """بروزرسانی محدودیت‌ها"""
         data = self._load()
