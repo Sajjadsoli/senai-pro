@@ -231,6 +231,47 @@ def api_domain():
     ok, msg = run_cmd("nginx -t && systemctl reload nginx")
     return jsonify({"ok": ok, "message": f"دامنه {domain} اضافه شد"})
 
+# ─── Subdomain Panel (Graphical) ─────────────────────────
+
+@app.route("/subdomain-panel")
+def subdomain_panel_page():
+    """پنل گرافیکی ساب‌دامنه"""
+    subdomain = request.args.get("name", request.host)
+    return render_template("subdomain_panel.html", subdomain=subdomain)
+
+@app.route("/api/traffic/<path:subdomain>")
+def api_traffic_status(subdomain):
+    """دریافت وضعیت ترافیک و زمان ساب‌دامنه"""
+    from core.traffic_monitor import TrafficMonitor
+    tm = TrafficMonitor()
+    status = tm.get_status(subdomain)
+    if status is None:
+        # Auto-init with defaults
+        tm.init_subdomain(subdomain)
+        status = tm.get_status(subdomain)
+    return jsonify({"ok": True, "status": status})
+
+@app.route("/api/traffic/<path:subdomain>/limits", methods=["POST"])
+def api_traffic_limits(subdomain):
+    """بروزرسانی محدودیت‌های ساب‌دامنه"""
+    from core.traffic_monitor import TrafficMonitor
+    tm = TrafficMonitor()
+    data = request.json or {}
+    ok = tm.update_limits(
+        subdomain,
+        data_limit_gb=data.get("data_limit_gb"),
+        time_limit_hours=data.get("time_limit_hours")
+    )
+    return jsonify({"ok": ok, "message": "محدودیت‌ها بروزرسانی شد" if ok else "خطا"})
+
+@app.route("/api/traffic/<path:subdomain>/reset", methods=["POST"])
+def api_traffic_reset(subdomain):
+    """ریست مصرف ساب‌دامنه"""
+    from core.traffic_monitor import TrafficMonitor
+    tm = TrafficMonitor()
+    ok = tm.reset_usage(subdomain)
+    return jsonify({"ok": ok, "message": "مصرف ریست شد" if ok else "خطا"})
+
 @app.route("/api/subdomain", methods=["POST"])
 def api_subdomain():
     data = request.json or {}
@@ -248,10 +289,30 @@ def api_subdomain():
     if port < 1 or port > 65535:
         return jsonify({"ok": False, "error": "پورت نامعتبر (۱-۶۵۵۳۵)"})
     
-    # Create nginx config for subdomain
+    # Create nginx config for subdomain - serves panel + proxies to app
     nginx_conf = f"""server {{
     listen 80;
     server_name {subdomain};
+    
+    # Subdomain management panel
+    location /panel {{
+        proxy_pass http://127.0.0.1:5000/subdomain-panel?name={subdomain};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }}
+    
+    # Traffic API
+    location /api/traffic {{
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }}
+    
+    # Main app proxy
     location / {{
         proxy_pass http://127.0.0.1:{port};
         proxy_set_header Host $host;
@@ -283,6 +344,11 @@ def api_subdomain():
         cfg["subdomains"] = [s for s in cfg["subdomains"] if s.get("name") != subdomain]
         cfg["subdomains"].append({"name": subdomain, "port": port, "ssl": False})
         save_domain_config(cfg)
+        
+        # Initialize traffic monitoring
+        from core.traffic_monitor import TrafficMonitor
+        tm = TrafficMonitor()
+        tm.init_subdomain(subdomain, port=port)
     
     return jsonify({"ok": ok, "message": f"ساب‌دامنه {subdomain} اضافه شد"})
 
@@ -309,6 +375,11 @@ def api_subdomain_delete():
         if "subdomains" in cfg:
             cfg["subdomains"] = [s for s in cfg["subdomains"] if s.get("name") != subdomain]
             save_domain_config(cfg)
+        
+        # Remove traffic monitoring
+        from core.traffic_monitor import TrafficMonitor
+        tm = TrafficMonitor()
+        tm.remove_subdomain(subdomain)
     
     return jsonify({"ok": ok, "message": f"ساب‌دامنه {subdomain} حذف شد"})
 
