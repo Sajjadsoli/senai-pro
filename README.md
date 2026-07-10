@@ -27,13 +27,13 @@
 ### روش ۱: نصب مستقیم از GitHub
 
 ```bash
-bash <(curl -sL https://raw.githubusercontent.com/sajadslomp/senai-pro/main/scripts/install.sh)
+bash <(curl -sL https://raw.githubusercontent.com/Sajjadsoli/senai-pro/main/scripts/install.sh)
 ```
 
 ### روش ۲: کلون و نصب
 
 ```bash
-git clone https://github.com/sajadslomp/senai-pro.git
+git clone https://github.com/Sajjadsoli/senai-pro.git
 cd senai-pro
 chmod +x scripts/install.sh
 sudo bash scripts/install.sh
@@ -168,8 +168,8 @@ senai-pro/
 
 ## 🆘 پشتیبانی
 
-- [گزارش باگ](https://github.com/sajadslomp/senai-pro/issues)
-- [درخواست فیچر](https://github.com/sajadslomp/senai-pro/issues)
+- [گزارش باگ](https://github.com/Sajjadsoli/senai-pro/issues)
+- [درخواست فیچر](https://github.com/Sajjadsoli/senai-pro/issues)
 
 ---
 

@@ -4,7 +4,7 @@
 #  نصب خودکار پنل مدیریت سرور ضد‌فیلتر
 # ============================================================
 #  Author: Sajad Soleymani
-#  GitHub: https://github.com/sajadslomp/senai-pro
+#  GitHub: https://github.com/Sajjadsoli/senai-pro
 #  License: MIT
 # ============================================================
 
@@ -243,7 +243,7 @@ install_panel() {
     # If running from curl, download files
     if [[ ! -d "$INSTALL_DIR/panel" ]]; then
         log_info "دانلود فایل‌های پروژه از GitHub..."
-        git clone --depth 1 https://github.com/sajadslomp/senai-pro.git /tmp/senai-pro-clone
+        git clone --depth 1 https://github.com/Sajjadsoli/senai-pro.git /tmp/senai-pro-clone
         cp -r /tmp/senai-pro-clone/* "$INSTALL_DIR/"
         rm -rf /tmp/senai-pro-clone
     fi
@@ -420,7 +420,7 @@ show_summary() {
     echo -e "  فایروال:          ${GREEN}فعال${NC}"
     echo ""
     echo -e "${BOLD}📚 مستندات:${NC}"
-    echo -e "  GitHub: https://github.com/sajadslomp/senai-pro"
+    echo -e "  GitHub: https://github.com/Sajjadsoli/senai-pro"
     echo ""
     echo -e "${YELLOW}⚠️  رمز عبور را در جای امن ذخیره کنید!${NC}"
 }
